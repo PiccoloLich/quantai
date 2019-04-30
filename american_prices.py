@@ -10,6 +10,7 @@ import QuantLib as ql
 from timeit import default_timer as timer
 from datetime import date, timedelta
 import random
+import pandas as pd
 
 def datetime_to_ql(py_date):
     """
@@ -161,17 +162,32 @@ def gen_one_sample():
                               inputs["TimeSteps"],
                               inputs["GridPoints"])
 
+def gen_samples(n_files, samples_per_file, file_prefix="data/data_"):
+    for i in range(0, n_files):
+        results = []
+        for j in range(0, samples_per_file):
+            ires = gen_one_sample()
+            results.append(ires)
+        df = pd.DataFrame(results)
+        df = df[["ValDate", "SettleDate", "ExerciseDate", "Stock", "Strike",
+                 "Vol", "PutCall", "RiskFreeRate", "Dividend", "Method",
+                 "TimeSteps", "GridPoints", 
+                 "PV", "Delta", "Gamma", "Time"
+                 ]]
+        df.to_csv(file_prefix+str(i)+".csv")
+        print("done file "+str(i))
+
 def gen_inputs():
     """
     generate one set of inputs to the american pricing
     """
     #generate dates
     d0 = date(1970, 1, 1)
-    days = random.randint(0, 20000)
+    days = random.randint(1, 20000)
     val_date = d0 + timedelta(days=days)
-    days = random.randint(0, 10)
+    days = random.randint(1, 10)
     settle_date = val_date + timedelta(days=days)
-    days = random.randint(0, 5000)
+    days = random.randint(1, 5000)
     exercise_date = settle_date + timedelta(days=days)
     
     #generate stock, strike, vol
@@ -240,6 +256,7 @@ def test3():
     print(gen_one_sample())
 
 if __name__ == "__main__":
-    test1()
-    test2()
-    test3()
+    #test1()
+    #test2()
+    #test3()
+    gen_samples(100, 10000, file_prefix="data/data_")
