@@ -11,6 +11,8 @@ from timeit import default_timer as timer
 from datetime import date, timedelta
 import random
 import pandas as pd
+from multiprocessing import Pool
+import os
 
 def datetime_to_ql(py_date):
     """
@@ -144,39 +146,6 @@ def american_valuation(
 
     return res
 
-def gen_one_sample():
-    """
-    generate one data sample
-    """
-    inputs = gen_inputs()
-    return american_valuation(inputs["ValDate"],
-                              inputs["SettleDate"],
-                              inputs["ExerciseDate"],
-                              inputs["Stock"], 
-                              inputs["Strike"], 
-                              inputs["Vol"], 
-                              inputs["PutCall"],
-                              inputs["RiskFreeRate"],
-                              inputs["Dividend"],
-                              inputs["Method"],
-                              inputs["TimeSteps"],
-                              inputs["GridPoints"])
-
-def gen_samples(n_files, samples_per_file, file_prefix="data/data_"):
-    for i in range(0, n_files):
-        results = []
-        for j in range(0, samples_per_file):
-            ires = gen_one_sample()
-            results.append(ires)
-        df = pd.DataFrame(results)
-        df = df[["ValDate", "SettleDate", "ExerciseDate", "Stock", "Strike",
-                 "Vol", "PutCall", "RiskFreeRate", "Dividend", "Method",
-                 "TimeSteps", "GridPoints", 
-                 "PV", "Delta", "Gamma", "Time"
-                 ]]
-        df.to_csv(file_prefix+str(i)+".csv")
-        print("done file "+str(i))
-
 def gen_inputs():
     """
     generate one set of inputs to the american pricing
@@ -215,48 +184,63 @@ def gen_inputs():
             "GridPoints": grid_points
             }
 
-def test1():
-    d1 = datetime_to_ql(date(2007, 12, 5))
-    print(d1)
-    print(date(2007, 12, 5))
-    d0 = date(1970, 1, 1)
-    d1 = d0 + timedelta(days = 100)
-    print(d1)
+def gen_one_sample():
+    """
+    generate one data sample
+    """
+    inputs = gen_inputs()
+    return american_valuation(inputs["ValDate"],
+                              inputs["SettleDate"],
+                              inputs["ExerciseDate"],
+                              inputs["Stock"], 
+                              inputs["Strike"], 
+                              inputs["Vol"], 
+                              inputs["PutCall"],
+                              inputs["RiskFreeRate"],
+                              inputs["Dividend"],
+                              inputs["Method"],
+                              inputs["TimeSteps"],
+                              inputs["GridPoints"])
 
-def test2():
-    val_date = date(2016, 4, 23)
-    settle_date = date(2016, 4, 23)
-    exercise_date = date(2026, 4, 23)
-    stock = 100.0
-    vol = 0.2
-    put_call = "put"
-    strike = 100.0
-    risk_free = 0.01
-    dividend = 0.0
-    method = "PDE"
-    time_steps = 801
-    grid_points = 800
-    res = american_valuation(
-            val_date, 
-            settle_date, 
-            exercise_date,
-            stock,
-            strike,
-            vol,
-            put_call,
-            risk_free,
-            dividend,
-            method,
-            time_steps,
-            grid_points
-            )
-    print(res)
-    
-def test3():
-    print(gen_one_sample())
+def gen_samples(n_files, samples_per_file, file_prefix="data/data_"):
+    """
+    generate samples in a single process
+    """
+    for i in range(0, n_files):
+        results = []
+        for j in range(0, samples_per_file):
+            ires = gen_one_sample()
+            results.append(ires)
+        df = pd.DataFrame(results)
+        df = df[["ValDate", "SettleDate", "ExerciseDate", "Stock", "Strike",
+                 "Vol", "PutCall", "RiskFreeRate", "Dividend", "Method",
+                 "TimeSteps", "GridPoints", 
+                 "PV", "Delta", "Gamma", "Time"
+                 ]]
+        df.to_csv(file_prefix+str(i)+".csv")
+        print("done file "+str(i))
+
+def gen_samples_mp(file_id, samples_per_file=1000000, file_prefix="data/data_"):
+    """
+    generate samples using multiple process
+    """
+    results = []
+    for j in range(0, samples_per_file):
+        ires = gen_one_sample()
+        results.append(ires)
+    df = pd.DataFrame(results)
+    df = df[["ValDate", "SettleDate", "ExerciseDate", "Stock", "Strike",
+             "Vol", "PutCall", "RiskFreeRate", "Dividend", "Method",
+             "TimeSteps", "GridPoints", 
+             "PV", "Delta", "Gamma", "Time"
+             ]]
+    df.to_csv(file_prefix+str(file_id)+".csv")
+    print("done file "+str(file_id))
 
 if __name__ == "__main__":
-    #test1()
-    #test2()
-    #test3()
-    gen_samples(100, 10000, file_prefix="data/data_")
+    #gen_samples(100, 100000, file_prefix="data2/data_")
+    def gen_func(file_id):
+        print("start "+str(file_id))
+        gen_samples_mp(file_id, samples_per_file=100000, file_prefix="data2/data2_")
+    pool = Pool(os.cpu_count())
+    pool.map(gen_func, range(0, 100))
